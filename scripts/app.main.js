@@ -441,6 +441,7 @@ function resizeImage(file, metadata) {
 			const newFormat  = getNewFormat(file, metadata);
 			const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
 
+			// TODO: (bug) firefox simply returns old image data if new format is the same as original format
 			console.log("converting image: " + newFormat + " " + newQuality);
 			canvas.toBlob(blob => {
 				resolve({
