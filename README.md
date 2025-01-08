@@ -1,6 +1,6 @@
 # Publish For Web
 
-A simple web page to prepare images for posting online. There are options to rename, change format resize, and insert or strip metadata.
+A simple web page to prepare images for posting online. There are options to rename, change format, resize, and insert or strip metadata.
 
 **>> [Try it in your browser](https://joe1817.github.io/Publish-For-Web/) <<**
 
