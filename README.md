@@ -1,6 +1,6 @@
 # Publish For Web
 
-A simple web page to prepare images for posting online. There are options to rename, change format resize, and insert or strip metadata.
+A simple web page to prepare images for posting online. There are options to rename, change format, resize, and insert or strip metadata.
 
 **>> [Try it in your browser](https://joe1817.github.io/Publish-For-Web/) <<**
 
@@ -19,7 +19,7 @@ Only static images (JPG, PNG, WEBP, TIFF, and BMP) are supported. The page can a
 **`Template`** Using certain format tokens, you can define a pattern that new image file names will follow. You can, for example, join a prefix or suffix, include metadata, or generate random characters for every file name. (Default: **web-%f-%wx%h**)
 
 > [!NOTE]
-> Some formatting tokens may introduce characters that your OS or browser cannot handle in file names. In these events, your browser will replace the "evil" characters with underscores ("_").
+> Some formatting tokens may introduce characters that your OS or browser cannot handle in file names. In these events, your browser will replace the "bad" characters with underscores ("_").
 
 **`No change`** File name of output will match input.
 
