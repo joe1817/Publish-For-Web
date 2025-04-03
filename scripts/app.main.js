@@ -439,7 +439,7 @@ function resizeImage(file, metadata) {
 				ctx.drawImage(img, 0, 0);
 			}
 			const newFormat  = getNewFormat(file, metadata);
-			const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
+			const newQuality = getNewQuality(file);
 
 			console.log("converting image: " + newFormat + " " + newQuality);
 			canvas.toBlob(blob => {
