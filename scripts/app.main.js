@@ -29,11 +29,11 @@ function* getNewFilename(file, newMetadata, oldMetadata) {
 		let template = getInputOrDefault("filename-template-text");
 
 		// default params
-		template = template.replaceAll(/(?<!%)%(?![fFGxwhdDrR%])/g, "%%"); // lone % is taken literally
-		template = template.replaceAll(/%d(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
-		template = template.replaceAll(/%D(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
-		template = template.replaceAll(/%r(?!{)/g, "%r{4}");               // default random count
-		template = template.replaceAll(/%R(?!{)/g, "%R{4}");               // default random count
+		template = template.replaceAll(/(?<!%)%(?![fFGxwhqdDrR%])/g, "%%"); // lone % is taken literally
+		template = template.replaceAll(/%d(?!{)/g, "%d{yyyyLLdd_HHmmss}");  // default Date format
+		template = template.replaceAll(/%D(?!{)/g, "%d{yyyyLLdd_HHmmss}");  // default Date format
+		template = template.replaceAll(/%r(?!{)/g, "%r{4}");                // default random count
+		template = template.replaceAll(/%R(?!{)/g, "%R{4}");                // default random count
 
 		let out = "";
 		let command = "", arg = "";
@@ -86,6 +86,9 @@ function* getNewFilename(file, newMetadata, oldMetadata) {
 					command = "";
 				} else if (command === "h") {
 					out += newMetadata.height;
+					command = "";
+				} else if (command === "q") {
+					out += parseInt(100*getNewQuality());
 					command = "";
 				} else if (command === "d") {
 					i++;
