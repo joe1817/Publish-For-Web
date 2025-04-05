@@ -5,9 +5,28 @@
 // https://developers.google.com/speed/webp/docs/riff_container
 
 
+function getBlobBytes(blob) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+
+		reader.onload = () => {
+			const arrayBuffer = reader.result; // Contains the raw bytes as an ArrayBuffer
+			const uint8Array = new Uint8Array(arrayBuffer); // Create a Uint8Array view
+			resolve(uint8Array);
+		};
+
+		reader.onerror = () => {
+			reject(reader.error);
+		};
+
+		reader.readAsArrayBuffer(blob);
+	});
+}
+
 async function readMetadata(file) {
 	const metadata = {};
-	const bytes = await file.slice(0, 80*1024).bytes(); // TODO read 20 bytes, more based on format
+	//const bytes = await file.slice(0, 80*1024).bytes(); // does not work outside Firefox
+	const bytes = await getBlobBytes(file.slice(0, 80*1024)); // TODO read 20 bytes, more based on format
 
 	if (bytes[0] == 0xFF && bytes[1] == 0xD8)
 		metadata.type = "image/jpeg";
