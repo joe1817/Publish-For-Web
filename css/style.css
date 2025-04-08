@@ -9,6 +9,7 @@ body {
 	color: #B3B3B3;
 	background-color: #333;
 	line-height: 1.0;
+	padding-bottom: 1em;
 }
 
 h1 {
@@ -64,8 +65,8 @@ a {
 }
 
 .selection {
-    height: 22px;
-    line-height: 22px;
+	height: 22px;
+	line-height: 22px;
 }
 
 .note {
@@ -186,69 +187,51 @@ label {
 	cursor: pointer;
 	color: white;
 	display: inline-block;
-	background-color: #5AF;
+	background-color: rgba(80, 160, 255, 0.8);
 	font-weight: bold;
 	text-decoration: none;
 	line-height: 1.5;
 }
 
 .button:hover {
-	background-color: #6BF;
-}
-
-.hollow.button {
-	background-color: transparent;
-	color: white;
-	border: 2px solid #333;
-	padding: 3px 12px 3px 12px;
-}
-
-.hollow.button:hover {
-	color: white;
-	background-color: #333;
-}
-
-.narrow.button {
-	padding: 8px 12px;
-	font-size: 12px;
-	letter-spacing: 0.1em;
+	background-color: rgba(80, 160, 255, 1.0);
 }
 
 /* Spinner */
 
 .lds-dual-ring {
-  color: #333;
+	color: #333;
 }
 
 .lds-dual-ring, .lds-dual-ring:after {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 .lds-dual-ring {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
+	display: inline-block;
+	width: 16px;
+	height: 16px;
 }
 
 .lds-dual-ring:after {
-  content: " ";
-  display: block;
-  width: 16px;
-  height: 16px;
-  margin: 2px;
-  border-radius: 50%;
-  border: 3px solid currentColor;
-  border-color: currentColor transparent currentColor transparent;
-  animation: lds-dual-ring 1.2s linear infinite;
+	content: " ";
+	display: block;
+	width: 16px;
+	height: 16px;
+	margin: 2px;
+	border-radius: 50%;
+	border: 3px solid currentColor;
+	border-color: currentColor transparent currentColor transparent;
+	animation: lds-dual-ring 1.2s linear infinite;
 }
 
 @keyframes lds-dual-ring {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
 }
 
 .social-links {
@@ -285,7 +268,7 @@ label {
 
 #message-text {
 	font-size: 14px;
-	color: white;
+	color: #333;
 }
 
 .message-box {
@@ -294,10 +277,9 @@ label {
 	margin: 0 auto;
 	padding: 20px;
 	text-align: center;
-	background-color: #5AF;
-	border-left: 40px solid white;
-	border-right: 40px solid transparent;
+	background-color: #FFF;
 	box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.6);
+	border-radius: 8px;
 }
 
 .noselect {
