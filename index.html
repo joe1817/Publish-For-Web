@@ -60,14 +60,30 @@
 </fieldset>
 
 <fieldset>
+<legend>Crop</legend>
+<div class="selection">
+<label for="option-dimension-cropt" style="display: inline-block; width: 40px;">Top:</label>
+<input type="text" id="image-cropt" name="option-dimension-cropt" maxlength="4" value="0" default="0" style="width:50px" />
+<label for="option-dimension-cropb" style="display: inline-block; width: 40px;">Bottom:</label>
+<input type="text" id="image-cropb" name="option-dimension-cropb" maxlength="4" value="0" default="0" style="width:50px" />
+</div>
+<div class="selection">
+<label for="option-dimension-cropl" style="display: inline-block; width: 40px;">Left:</label>
+<input type="text" id="image-cropl" name="option-dimension-cropl" maxlength="4" value="0" default="0" style="width:50px" />
+<label for="option-dimension-cropr" style="display: inline-block; width: 40px;">Right:</label>
+<input type="text" id="image-cropr" name="option-dimension-cropr" maxlength="4" value="0" default="0" style="width:50px" />
+</div>
+</fieldset>
+
+<fieldset>
 <legend>Max Dimensions</legend>
 <div class="selection">
-<label for="option-dimension-width" style="display: inline-block; width: 35px;">Width:</label>
+<label for="option-dimension-width" style="display: inline-block; width: 40px;">Width:</label>
 <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" value="1280" default="1280" style="width:100px" />
 <span class="note">(set blank for no limit)</span>
 </div>
 <div class="selection">
-<label for="option-dimension-height" style="display: inline-block; width: 35px;">Height:</label>
+<label for="option-dimension-height" style="display: inline-block; width: 40px;">Height:</label>
 <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" value="1024" default="1024" style="width:100px" />
 <span class="note">(set blank for no limit)</span>
 </div>

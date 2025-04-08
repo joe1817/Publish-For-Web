@@ -1,6 +1,6 @@
 # Publish For Web
 
-A simple web page to prepare images for posting online. There are options to rename, change format, resize, and insert or strip metadata.
+A simple web page to prepare images for posting online. There are options to rename, change format, crop, resize, and insert or strip metadata.
 
 **>> [Try it in your browser](https://joe1817.github.io/Publish-For-Web/) <<**
 
@@ -38,6 +38,24 @@ Only static images (JPG, PNG, WEBP, TIFF, and BMP) are supported. The page can a
 **`WEBP`** Output all files as PNG.
 
 **`Match Input`** Will attempt to save JPG, PNG, and WEBP images in the same format as they were inputted. Other files will be saved as JPGs.
+
+<div align="center">
+<h3>Crop</h3>
+</div>
+
+Crop the given number of pixels from the edge of the image.
+
+If left blank, then the corresponding edge will not be cropped.
+
+*Set any or all below.*
+
+**`Top`** (Default: **0**)
+
+**`Bottom`** (Default: **0**)
+
+**`Left`** (Default: **0**)
+
+**`Right`** (Default: **0**)
 
 <div align="center">
 <h3>Max Dimensions</h3>

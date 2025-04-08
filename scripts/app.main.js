@@ -127,16 +127,21 @@ function* getNewFilename(file, newMetadata, oldMetadata) {
 	}
 }
 
-function getNewDimensions(img) {
-	let newWidth = img.width, newHeight = img.height;
-	let maxWidth = parseInt(document.getElementById("image-maxwidth").value);
+function getNewDimensions(metadata) {
+	let cropt     = parseInt(getInputOrDefault("image-cropt"))
+	let cropb     = parseInt(getInputOrDefault("image-cropb"))
+	let cropl     = parseInt(getInputOrDefault("image-cropl"))
+	let cropr     = parseInt(getInputOrDefault("image-cropr"))
+	let maxWidth  = parseInt(document.getElementById("image-maxwidth").value);
 	let maxHeight = parseInt(document.getElementById("image-maxheight").value);
+	let newWidth  = metadata.width - cropl - cropr;
+	let newHeight = metadata.height - cropt - cropb;
 
 	if (isNaN(maxWidth)) {
-		maxWidth = img.width;
+		maxWidth = newWidth;
 	}
 	if (isNaN(maxHeight)) {
-		maxHeight = img.height;
+		maxHeight = newHeight;
 	}
 
 	if (newWidth > maxWidth) {
@@ -149,7 +154,8 @@ function getNewDimensions(img) {
 	}
 	newWidth = Math.floor(newWidth + 0.0001);
 	newHeight = Math.floor(newHeight + 0.0001);
-	return [newWidth, newHeight];
+
+	return [cropt, cropb, cropl, cropr, newWidth, newHeight];
 }
 
 function getNewFormat(file, metadata) {
@@ -284,17 +290,23 @@ function processFiles(f) {
 
 function processSingle(f) {
 	console.log("beginning file: " + f.name);
-	let oldMetadata, resized, newMetadata;
+	let oldMetadata, newMetadata;
 	return readMetadata(f)
 	.then(x => {
 		oldMetadata = x;
+
 		if (!oldMetadata.type)
 			throw new Error("Unsupported file type");
-		return resizeImage(f, oldMetadata);
+
+		let newType = getNewFormat(f, oldMetadata);
+		let newDims = getNewDimensions(oldMetadata);
+		let newQuality = getNewQuality(f);
+
+		return resizeImage(f, oldMetadata, newType, newDims, newQuality);
 	})
-	.then(x => {
-		resized = x;
+	.then(resized => {
 		newMetadata = getNewMetadata(f, oldMetadata, resized);
+
 		return insertMetadata(resized.blob, newMetadata);
 	})
 	.then(newBlob => {
@@ -329,24 +341,31 @@ function processMultiple(files) {
 
 	Promise.all(
 		Array.from(files).map(f => {
-
 			console.log("beginning file: " + f.name);
-			let oldMetadata, resized, newMetadata;
+			let oldMetadata, newMetadata;
+
 			return readMetadata(f)
 			.then(x => {
-				oldMetadata = x;
+				oldMetadata = x
+
 				if (!oldMetadata.type)
 					throw new Error("Unsupported file type");
-				return resizeImage(f, oldMetadata);
+
+				let newType = getNewFormat(f, oldMetadata);
+				let newDims = getNewDimensions(oldMetadata);
+				let newQuality = getNewQuality(f);
+
+				return resizeImage(f, oldMetadata, newType, newDims, newQuality);
 			})
-			.then(x => {
-				resized = x;
+			.then(resized => {
 				newMetadata = getNewMetadata(f, oldMetadata, resized);
+
 				return insertMetadata(resized.blob, newMetadata);
 			})
 			.then(newBlob => {
 				// get unique file name
 				let newName;
+
 				for(newName of getNewFilename(f, newMetadata, oldMetadata)) {
 					if (!usedFilenames.has(newName)) {
 						usedFilenames.add(newName);
@@ -365,12 +384,12 @@ function processMultiple(files) {
 		})
 	)
 	.then(() => {
-
 		console.log("generating zip");
 		messageText.textContent = "Zipping files...";
 		zip.generateAsync({ type: "blob", compression: "STORE" })
 		.then(content => {
 			saveAs(content, "images.zip");
+
 			if (error) {
 				messageText.textContent = "Some images failed. Make sure they are all valid images.";
 			} else {
@@ -388,21 +407,20 @@ function processMultiple(files) {
 	});
 }
 
-function resizeImage(file, metadata) {
+function resizeImage(file, metadata, newType, newDims, newQuality) {
+
+	[cropt, cropb, cropl, cropr, newWidth, newHeight] = newDims;
 
 	return new Promise((resolve, reject) => {
-		let [newWidth, newHeight] = getNewDimensions(metadata);
-		let newType = getNewFormat(file, metadata);
-
-		if (newType == metadata.type && newWidth == metadata.width && newHeight == metadata.height) {
+		if (cropt + cropb + cropl + cropr == 0 && newWidth == metadata.width && newHeight == metadata.height && newType == metadata.type) {
 			removeMetadata(file, metadata.type)
 			.then(removed => {
 				if (removed) {
 					console.log("copying image data");
 					resolve({
 						blob   : removed,
-						width  : newWidth,
-						height : newHeight,
+						width  : metadata.width,
+						height : metadata.height,
 					});
 				}
 			});
@@ -413,27 +431,47 @@ function resizeImage(file, metadata) {
 
 		img.onload = () => {
 			URL.revokeObjectURL(url);
-			[newWidth, newHeight] = getNewDimensions(img);
+
+			// Create a temporary canvas to render the processed image
 			const canvas = document.createElement("canvas");
-			if (img.width != newWidth || img.height != newHeight) {
+
+			if (cropt + cropb + cropl + cropr > 0 || newWidth != metadata.width || newHeight != metadata.height) {
+				// Wrap canvas in a Fabric.js canvas
 				const fcanvas = new fabric.Canvas(canvas, {
 					imageSmoothingEnabled: false,
 					enableRetinaScaling: false,
 				});
 				fcanvas.setWidth(newWidth);
 				fcanvas.setHeight(newHeight);
+
+				// Apply cropping
+				const croppedImage = new fabric.Image(img, {
+					left: 0,
+					top: 0,
+					cropX: cropl,
+					cropY: cropt,
+					width: img.width - cropl - cropr,
+					height: img.height - cropt - cropb
+				});
+
+				// Apply scaling
+				croppedImage.scale(newWidth / (img.width - cropl - cropr));
+
+				// Apply filter
 				const lanczosFilter = new fabric.Image.filters.Resize({
 					scaleX: 1,
 					scaleY: 1,
 					resizeType: "lanczos",
 					lanczosLobes: 3,
 				});
-				const fimg = new fabric.Image(img).scale(newWidth / img.width);
 				const r = fcanvas.getRetinaScaling();
-				lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
-				fimg.filters = [lanczosFilter];
-				fimg.applyFilters();
-				fcanvas.add(fimg);
+				lanczosFilter.scaleX = lanczosFilter.scaleY = croppedImage.scaleX * r;
+				// TODO compare image quality before/after enabling these two lines
+				croppedImage.filters = [lanczosFilter];
+				croppedImage.applyFilters(); // TODO WEBGL deprecation warning
+
+				// Render
+				fcanvas.add(croppedImage);
 				fcanvas.renderAll();
 			} else {
 				canvas.width = img.width;
@@ -441,17 +479,23 @@ function resizeImage(file, metadata) {
 				const ctx = canvas.getContext("2d");
 				ctx.drawImage(img, 0, 0);
 			}
-			const newFormat  = getNewFormat(file, metadata);
-			const newQuality = getNewQuality(file);
 
-			console.log("converting image: " + newFormat + " " + newQuality);
-			canvas.toBlob(blob => {
-				resolve({
-					blob   : blob,
-					width  : newWidth,
-					height : newHeight,
-				});
-			}, newFormat, newQuality);
+			// Convert the fcanvas to a Blob
+			console.log("converting image: " + newType + " " + newQuality);
+			canvas.toBlob(
+				(blob) => {
+					if (blob) {
+						resolve({
+							blob   : blob,
+							width  : newWidth,
+							height : newHeight,
+						});
+					} else {
+						reject(new Error("Failed to create Blob."));
+					}
+				},
+				newType, newQuality
+			);
 		}
 
 		img.onerror = (error) => {
@@ -625,34 +669,6 @@ function resetEnabled() {
 	//w.disabled = h.disabled = filetype == "filetype-copydata";
 }
 
-document.querySelectorAll("input[type='radio']").forEach(tag => {
-	tag.addEventListener("input", (event) => {
-		resetEnabled();
-	});
-});
-
-(function() {
-	const dimObserver = new MutationObserver((mutations) => {
-		mutations.forEach((mutation) => {
-			if (mutation.attributeName === "disabled") {
-				if (mutation.target.disabled) {
-					mutation.target.value = "";
-				} else {
-					mutation.target.value = mutation.target.getAttribute("default");
-				}
-			}
-		});
-	});
-	dimObserver.observe(document.getElementById("image-maxwidth"), { attributes: true });
-	dimObserver.observe(document.getElementById("image-maxheight"), { attributes: true });
-})();
-
-document.addEventListener("keydown", (event) => {
-	if (event.key === "Escape") {
-		resetInputs();
-	}
-});
-
 function filterInput(event, filter) {
 	const tag = event.target;
 	const input = tag.value;
@@ -665,63 +681,108 @@ function filterInput(event, filter) {
 	}
 }
 
-document.getElementById("filename-template-text").addEventListener("input", (event) => {
-	filterInput(event, /[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
-});
-
-document.getElementById("meta-artist").addEventListener("input", (event) => {
-	filterInput(event, /[^ -~]/g); // printable ascii only
-});
-
-document.getElementById("meta-title").addEventListener("input", (event) => {
-	filterInput(event, /[^ -~]/g);
-});
-
-document.getElementById("meta-copyright").addEventListener("input", (event) => {
-	filterInput(event, /[^ -~]/g);
-});
-
-document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
-	filterInput(event, /[^0-9.]/g); // rational numbers only
-});
-
-document.getElementById("image-maxwidth").addEventListener("input", (event) => {
-	filterInput(event, /[^0-9]/g); // integers only
-});
-
-document.getElementById("image-maxheight").addEventListener("input", (event) => {
-	filterInput(event, /[^0-9]/g);
-});
-
-document.getElementById("filename-template-text").addEventListener("focus", (event) => {
-	document.getElementById('info-panel').classList.remove("hidden");
-});
-
-document.getElementById("filename-template-text").addEventListener("blur", (event) => {
-	setTimeout(() => {
-		document.getElementById('info-panel').classList.toggle("hidden");
-	}, 100);
-});
-
-document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
-	event.target.value = "";
-});
-
-document.getElementById("image-maxheight").addEventListener("focus", (event) => {
-	event.target.value = "";
-});
-
-document.querySelectorAll("input").forEach(tag => {
-	if (tag.hasAttribute("fill-blank")) {
-		tag.addEventListener("blur", (event) => {
-			if (tag.value === "") {
-				tag.value = tag.getAttribute("default");
-			}
-		});
-	}
-});
-
 window.addEventListener("DOMContentLoaded", () => {
+
+	document.querySelectorAll("input[type='radio']").forEach(tag => {
+		tag.addEventListener("input", (event) => {
+			resetEnabled();
+		});
+	});
+
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Escape") {
+			resetInputs();
+		}
+	});
+
+	document.getElementById("filename-template-text").addEventListener("input", (event) => {
+		filterInput(event, /[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
+	});
+
+	document.getElementById("meta-artist").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+
+	document.getElementById("meta-title").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+
+	document.getElementById("meta-copyright").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+
+	document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9.]/g); // rational numbers only
+	});
+
+	document.getElementById("image-cropt").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("image-cropb").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("image-cropl").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("image-cropr").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("image-maxwidth").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("image-maxheight").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	document.getElementById("filename-template-text").addEventListener("focus", (event) => {
+		document.getElementById('info-panel').classList.remove("hidden");
+	});
+
+	document.getElementById("filename-template-text").addEventListener("blur", (event) => {
+		setTimeout(() => {
+			document.getElementById('info-panel').classList.toggle("hidden");
+		}, 100);
+	});
+
+	document.getElementById("image-cropt").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.getElementById("image-cropb").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.getElementById("image-cropl").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.getElementById("image-cropr").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.getElementById("image-maxheight").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	document.querySelectorAll("input").forEach(tag => {
+		if (tag.hasAttribute("fill-blank")) {
+			tag.addEventListener("blur", (event) => {
+				if (tag.value === "") {
+					tag.value = tag.getAttribute("default");
+				}
+			});
+		}
+	});
+
 	if (window.navigator.userAgent.includes("Win")) {
 		for (const e of document.querySelectorAll(".hide-windows")) {
 			e.style.display = "none";
@@ -732,8 +793,21 @@ window.addEventListener("DOMContentLoaded", () => {
 		}
 	}
 
-	resetEnabled();
-
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
+		const dimObserver = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			if (mutation.attributeName === "disabled") {
+				if (mutation.target.disabled) {
+					mutation.target.value = "";
+				} else {
+					mutation.target.value = mutation.target.getAttribute("default");
+				}
+			}
+		});
+	});
+	dimObserver.observe(document.getElementById("image-maxwidth"), { attributes: true });
+	dimObserver.observe(document.getElementById("image-maxheight"), { attributes: true });
+
+	resetEnabled();
 });
