@@ -191,11 +191,9 @@ function getNewQuality() {
 	return quality;
 }
 
-function getNewMetadata(file, metadata, resized) {
+function getNewMetadata(file, metadata, width, height) {
 	const newMetadata = {};
 	newMetadata.type   = metadata.type;
-	newMetadata.width  = resized.width;
-	newMetadata.height = resized.height;
 
 	const artist    = document.getElementById("meta-artist").value;
 	const title     = document.getElementById("meta-title").value;
@@ -288,31 +286,32 @@ function processFiles(f) {
 	}
 }
 
-function processSingle(f) {
-	console.log("beginning file: " + f.name);
-	let oldMetadata, newMetadata; // TODO pass these in the Promise chain
-	return readMetadata(f)
-	.then(x => {
-		oldMetadata = x;
-
-		if (!oldMetadata.type)
+function processSingle(file) {
+	console.log("beginning file: " + file.name);
+	return readMetadata(file)
+	.then(metadata => {
+		if (!metadata.type)
 			throw new Error("Unsupported file type");
 
-		let newType = getNewFormat(f, oldMetadata);
-		let newDims = getNewDimensions(oldMetadata);
-		let newQuality = getNewQuality(f);
+		let newType = getNewFormat(file, metadata);
+		let newDims = getNewDimensions(metadata);
+		let newQuality = getNewQuality(file);
 
-		return resizeImage(f, oldMetadata, newType, newDims, newQuality);
+		return resizeImage(file, metadata, newType, newDims, newQuality);
 	})
-	.then(resized => {
-		newMetadata = getNewMetadata(f, oldMetadata, resized);
+	.then(result => {
+		result.newMetadata = getNewMetadata(result.file, result.metadata, result.newWidth, result.newHeight);
 
-		return insertMetadata(resized.blob, newMetadata);
+		return insertMetadata(result.blob, result.newMetadata)
+		.then(newBlob => {
+			result.blob = newBlob;
+			return result;
+		});
 	})
-	.then(newBlob => {
-		const newName = getNewFilename(f, newMetadata, oldMetadata).next().value;
+	.then(result => {
+		const newName = getNewFilename(result.file, result.newMetadata, result.metadata).next().value;
 		console.log("renaming to: " + newName);
-		saveAs(newBlob, newName);
+		saveAs(result.blob, newName);
 	})
 	.catch(err => {
 		console.log(err);
@@ -340,33 +339,34 @@ function processMultiple(files) {
 	message.classList.remove("hidden");
 
 	Promise.all(
-		Array.from(files).map(f => {
-			console.log("beginning file: " + f.name);
-			let oldMetadata, newMetadata;
+		Array.from(files).map(file => {
+			console.log("beginning file: " + file.name);
 
-			return readMetadata(f)
-			.then(x => {
-				oldMetadata = x
-
-				if (!oldMetadata.type)
+			return readMetadata(file)
+			.then(metadata => {
+				if (!metadata.type)
 					throw new Error("Unsupported file type");
 
-				let newType = getNewFormat(f, oldMetadata);
-				let newDims = getNewDimensions(oldMetadata);
-				let newQuality = getNewQuality(f);
+				let newType = getNewFormat(file, metadata);
+				let newDims = getNewDimensions(metadata);
+				let newQuality = getNewQuality(file);
 
-				return resizeImage(f, oldMetadata, newType, newDims, newQuality);
+				return resizeImage(file, metadata, newType, newDims, newQuality);
 			})
-			.then(resized => {
-				newMetadata = getNewMetadata(f, oldMetadata, resized);
+			.then(result => {
+				result.newMetadata = getNewMetadata(result.file, result.metadata, result.newWidth, result.newHeight);
 
-				return insertMetadata(resized.blob, newMetadata);
+				return insertMetadata(result.blob, result.newMetadata)
+				.then(newBlob => {
+					result.blob = newBlob;
+					return result;
+				});
 			})
-			.then(newBlob => {
+			.then(result => {
 				// get unique file name
 				let newName;
 
-				for(newName of getNewFilename(f, newMetadata, oldMetadata)) {
+				for(newName of getNewFilename(result.file, result.newMetadata, result.metadata)) {
 					if (!usedFilenames.has(newName)) {
 						usedFilenames.add(newName);
 						break;
@@ -374,10 +374,10 @@ function processMultiple(files) {
 				}
 
 				console.log("adding file: " + newName);
-				zip.file(newName, newBlob);
+				zip.file(newName, result.blob);
 			})
 			.catch(err => {
-				console.log("error: " + f.name);
+				console.log("error: " + file.name);
 				console.log(err);
 				error = true;
 			});
@@ -418,9 +418,11 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 				if (removed) {
 					console.log("copying image data");
 					resolve({
-						blob   : removed,
-						width  : metadata.width,
-						height : metadata.height,
+						file     : file,
+						metadata : metadata,
+						blob     : removed,
+						width    : metadata.width,
+						height   : metadata.height,
 					});
 				}
 			});
@@ -464,11 +466,8 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 					resizeType: "lanczos",
 					lanczosLobes: 3,
 				});
-				const r = fcanvas.getRetinaScaling();
-				lanczosFilter.scaleX = lanczosFilter.scaleY = croppedImage.scaleX * r;
-				// TODO compare image quality before/after enabling these two lines
-				croppedImage.filters = [lanczosFilter];
-				croppedImage.applyFilters(); // TODO WEBGL deprecation warning
+				croppedImage.filters = [lanczosFilter]; // TODO WEBGL deprecation warning
+				croppedImage.applyFilters();
 
 				// Render
 				fcanvas.add(croppedImage);
@@ -486,9 +485,11 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 				(blob) => {
 					if (blob) {
 						resolve({
-							blob   : blob,
-							width  : newWidth,
-							height : newHeight,
+							file     : file,
+							metadata : metadata,
+							blob     : blob,
+							width    : newWidth,
+							height   : newHeight,
 						});
 					} else {
 						reject(new Error("Failed to create Blob."));
