@@ -412,7 +412,7 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 	[cropt, cropb, cropl, cropr, newWidth, newHeight] = newDims;
 
 	return new Promise((resolve, reject) => {
-		if (cropt + cropb + cropl + cropr == 0 && newWidth == metadata.width && newHeight == metadata.height && newType == metadata.type) {
+		if (cropt + cropb + cropl + cropr == 0 && newWidth == metadata.width && newHeight == metadata.height && newType == metadata.type && (newType == "image/png" || newQuality == 1)) {
 			removeMetadata(file, metadata.type)
 			.then(removed => {
 				if (removed) {
