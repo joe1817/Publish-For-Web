@@ -522,6 +522,14 @@ fileInputHandler = (event) => {
 		event.target.value = "";
 	}
 }
+filePasteHandler = (event) => {
+	console.log("Pasted " + event.clipboardData.files.length + " files.");
+	if (event.clipboardData.files.length) {
+		processFiles(event.clipboardData.files);
+	} else {
+		alert("Unable to read image data. If this problem persists, try drag-and-dropping files onto the page instead.");
+	}
+}
 document.getElementById("input-files").oninput = fileInputHandler;
 document.getElementById("input-dirs").oninput = fileInputHandler;
 
@@ -682,6 +690,8 @@ function filterInput(event, filter) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+
+	document.addEventListener('paste', filePasteHandler);
 
 	document.querySelectorAll("input[type='radio']").forEach(tag => {
 		tag.addEventListener("input", (event) => {
