@@ -290,7 +290,7 @@ function processFiles(f) {
 
 function processSingle(f) {
 	console.log("beginning file: " + f.name);
-	let oldMetadata, newMetadata;
+	let oldMetadata, newMetadata; // TODO pass these in the Promise chain
 	return readMetadata(f)
 	.then(x => {
 		oldMetadata = x;
@@ -507,6 +507,30 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 	});
 }
 
+function saveAs(content, filename) {
+	const [dir, basename, ext] = splitFilename(filename);
+	const mime = MIME[ext];
+	console.log("downloading: " + mime);
+	const file = new File([content], filename, { type: mime });
+	const url = URL.createObjectURL(file);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = filename;
+	link.click(); // TODO? only download zip - certain characters, including %, will be replaced with _ unless the images are in a .zip. Also, WEBP images will sometimes open in a new tab when downloaded.
+	URL.revokeObjectURL(url);
+}
+
+
+
+
+
+
+
+
+
+
+
+// target of HTML buttons
 function filePicker(dirs) {
 	if (dirs) {
 		document.getElementById("input-dirs").click();
@@ -522,6 +546,7 @@ fileInputHandler = (event) => {
 		event.target.value = "";
 	}
 }
+
 filePasteHandler = (event) => {
 	console.log("Pasted " + event.clipboardData.files.length + " files.");
 	if (event.clipboardData.files.length) {
@@ -530,14 +555,8 @@ filePasteHandler = (event) => {
 		alert("Unable to read image data. If this problem persists, try drag-and-dropping files onto the page instead.");
 	}
 }
-document.getElementById("input-files").oninput = fileInputHandler;
-document.getElementById("input-dirs").oninput = fileInputHandler;
 
-document.addEventListener("dragover", (event) => {
-	event.preventDefault();
-});
-
-document.addEventListener("drop", (event) => {
+fileDropHandler = (event) => {
 	event.preventDefault();
 	const items = event.dataTransfer.items;
 	const files = [];
@@ -577,82 +596,9 @@ document.addEventListener("drop", (event) => {
 			if (!--count) processFiles(files);
 		}
 	}
-}, false);
-
-
-
-
-
-
-
-
-
-
-
-function splitFilename(name) {
-	name = name.endsWith("/") ? name.substring(0, name.length-1) : name;
-	const lastDotIndex = name.lastIndexOf(".");
-	const lastSlashIndex = name.lastIndexOf("/");
-
-	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex+1) : "";
-	const basename = lastDotIndex   !== -1 ? name.substring(lastSlashIndex+1, lastDotIndex) : name.substring(lastSlashIndex+1);
-	const ext      = lastDotIndex   !== -1 ? name.substring(lastDotIndex     ) : "";
-	return [dir, basename, ext];
 }
 
-function saveAs(content, filename) {
-	const [dir, basename, ext] = splitFilename(filename);
-	const mime = MIME[ext];
-	console.log("downloading: " + mime);
-	const file = new File([content], filename, { type: mime });
-	const url = URL.createObjectURL(file);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = filename;
-	link.click(); // TODO? only download zip - certain characters, including %, will be replaced with _ unless the images are in a .zip. Also, WEBP images will sometimes open in a new tab when downloaded.
-	URL.revokeObjectURL(url);
-}
-
-function getRadioValue(groupName) {
-	const radioButtons = document.getElementsByName(groupName);
-	for (let i = 0; i < radioButtons.length; i++) {
-		if (radioButtons[i].checked) {
-			return radioButtons[i].value;
-		}
-	}
-	return null;
-}
-
-function getInputOrDefault(id) {
-	const tag = document.getElementById(id);
-	const val = tag.value || tag.getAttribute("default");
-	return val;
-}
-
-function safeParseInt(str, def) {
-  const parsedValue = parseInt(str, 10);
-  return isNaN(parsedValue) ? def : parsedValue;
-}
-
-function safeParseFloat(str, def) {
-  const parsedValue = parseFloat(str, 10);
-  return isNaN(parsedValue) ? def : parsedValue;
-}
-
-function clamp(num, min, max) {
-	return Math.min(Math.max(num, min), max);
-}
-
-
-
-
-
-
-
-
-
-
-
+// reset all inputs to default values
 function resetInputs() {
 	document.querySelectorAll("input").forEach(tag => {
 		if (tag.hasAttribute("default")) {
@@ -667,6 +613,7 @@ function resetInputs() {
 	resetEnabled();
 }
 
+// reset which inputs are enabled based on all current input values
 function resetEnabled() {
 	document.getElementById("filename-template-text").disabled = getRadioValue("option-filename") != "filename-template";
 
@@ -677,122 +624,12 @@ function resetEnabled() {
 	//w.disabled = h.disabled = filetype == "filetype-copydata";
 }
 
-function filterInput(event, filter) {
-	const tag = event.target;
-	const input = tag.value;
-	const cursorPosition = tag.selectionStart-1;
-	const filteredInput = tag.value.replace(filter, "");
-	if (filteredInput != input) {
-		tag.value = filteredInput;
-		tag.selectionStart = cursorPosition;
-		tag.selectionEnd = cursorPosition;
-	}
-}
-
 window.addEventListener("DOMContentLoaded", () => {
-
-	document.addEventListener('paste', filePasteHandler);
-
-	document.querySelectorAll("input[type='radio']").forEach(tag => {
-		tag.addEventListener("input", (event) => {
-			resetEnabled();
-		});
-	});
-
-	document.addEventListener("keydown", (event) => {
-		if (event.key === "Escape") {
-			resetInputs();
-		}
-	});
-
-	document.getElementById("filename-template-text").addEventListener("input", (event) => {
-		filterInput(event, /[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
-	});
-
-	document.getElementById("meta-artist").addEventListener("input", (event) => {
-		filterInput(event, /[^ -~]/g); // printable ascii only
-	});
-
-	document.getElementById("meta-title").addEventListener("input", (event) => {
-		filterInput(event, /[^ -~]/g); // printable ascii only
-	});
-
-	document.getElementById("meta-copyright").addEventListener("input", (event) => {
-		filterInput(event, /[^ -~]/g); // printable ascii only
-	});
-
-	document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9.]/g); // rational numbers only
-	});
-
-	document.getElementById("image-cropt").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("image-cropb").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("image-cropl").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("image-cropr").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("image-maxwidth").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("image-maxheight").addEventListener("input", (event) => {
-		filterInput(event, /[^0-9]/g); // integers only
-	});
-
-	document.getElementById("filename-template-text").addEventListener("focus", (event) => {
-		document.getElementById('info-panel').classList.remove("hidden");
-	});
-
-	document.getElementById("filename-template-text").addEventListener("blur", (event) => {
-		setTimeout(() => {
-			document.getElementById('info-panel').classList.toggle("hidden");
-		}, 100);
-	});
-
-	document.getElementById("image-cropt").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.getElementById("image-cropb").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.getElementById("image-cropl").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.getElementById("image-cropr").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.getElementById("image-maxheight").addEventListener("focus", (event) => {
-		event.target.value = "";
-	});
-
-	document.querySelectorAll("input").forEach(tag => {
-		if (tag.hasAttribute("fill-blank")) {
-			tag.addEventListener("blur", (event) => {
-				if (tag.value === "") {
-					tag.value = tag.getAttribute("default");
-				}
-			});
-		}
-	});
-
+	// hide the warning about javascript being disabled
+	document.getElementById("js-off").classList.toggle("hidden");
+	document.getElementById("js-on").classList.toggle("hidden");
+	
+	// hide info specific to other OS's
 	if (window.navigator.userAgent.includes("Win")) {
 		for (const e of document.querySelectorAll(".hide-windows")) {
 			e.style.display = "none";
@@ -802,10 +639,95 @@ window.addEventListener("DOMContentLoaded", () => {
 			e.style.display = "none";
 		}
 	}
+	
+	// set file input handlers
+	document.getElementById("input-files").oninput = fileInputHandler;
+	document.getElementById("input-dirs").oninput = fileInputHandler;
+	document.addEventListener('paste', filePasteHandler);
+	document.addEventListener("dragover", (event) => {
+		event.preventDefault();
+	});
+	document.addEventListener("drop", fileDropHandler, false);
 
-	document.getElementById("js-off").classList.toggle("hidden");
-	document.getElementById("js-on").classList.toggle("hidden");
-		const dimObserver = new MutationObserver((mutations) => {
+	// show/hide info panel when interacting with template input
+	document.getElementById("filename-template-text").addEventListener("focus", (event) => {
+		document.getElementById("info-panel").classList.remove("hidden");
+	});
+	document.getElementById("filename-template-text").addEventListener("blur", (event) => {
+		setTimeout(() => {
+			document.getElementById("info-panel").classList.toggle("hidden");
+		}, 100);
+	});
+
+	// set allowed characters in inputs
+	document.getElementById("filename-template-text").addEventListener("input", (event) => {
+		filterInput(event, /[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
+	});
+	document.getElementById("meta-artist").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+	document.getElementById("meta-title").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+	document.getElementById("meta-copyright").addEventListener("input", (event) => {
+		filterInput(event, /[^ -~]/g); // printable ascii only
+	});
+	document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9.]/g); // rational numbers only
+	});
+	document.getElementById("image-cropt").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+	document.getElementById("image-cropb").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+	document.getElementById("image-cropl").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+	document.getElementById("image-cropr").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+	document.getElementById("image-maxwidth").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+	document.getElementById("image-maxheight").addEventListener("input", (event) => {
+		filterInput(event, /[^0-9]/g); // integers only
+	});
+
+	// set input to [blank] when selecting certain inputs
+	document.getElementById("image-cropt").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+	document.getElementById("image-cropb").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+	document.getElementById("image-cropl").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+	document.getElementById("image-cropr").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+	document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+	document.getElementById("image-maxheight").addEventListener("focus", (event) => {
+		event.target.value = "";
+	});
+
+	// fill certain tags with default value if they are left blank
+	document.querySelectorAll("input").forEach(tag => {
+		if (tag.hasAttribute("fill-blank")) {
+			tag.addEventListener("blur", (event) => {
+				if (tag.value === "") {
+					tag.value = tag.getAttribute("default");
+				}
+			});
+		}
+	});
+	
+	// if an input gets disabled, change its value to [blank]
+	// when it's enabled, change its value to [default]
+	const dimObserver = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
 			if (mutation.attributeName === "disabled") {
 				if (mutation.target.disabled) {
@@ -819,5 +741,20 @@ window.addEventListener("DOMContentLoaded", () => {
 	dimObserver.observe(document.getElementById("image-maxwidth"), { attributes: true });
 	dimObserver.observe(document.getElementById("image-maxheight"), { attributes: true });
 
+	// changing radio inputs should change what other inputs anr enabled
+	document.querySelectorAll("input[type='radio']").forEach(tag => {
+		tag.addEventListener("input", (event) => {
+			resetEnabled();
+		});
+	});
+
+	// escape key will reset everything
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Escape") {
+			resetInputs();
+		}
+	});
+
+	// reset what's enabled based on default values
 	resetEnabled();
 });
