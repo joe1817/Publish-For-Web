@@ -1,3 +1,5 @@
+# Archived because fabric.js sucks and can't do simple things like resizing images without much aggravation.
+
 # Publish For Web
 
 A simple web page to prepare images for posting online. There are options to rename, change format, crop, resize, and insert or strip metadata.
