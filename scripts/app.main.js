@@ -434,52 +434,24 @@ function resizeImage(file, metadata, newType, newDims, newQuality) {
 		img.onload = () => {
 			URL.revokeObjectURL(url);
 
-			// Create a temporary canvas to render the processed image
 			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
 
-			if (cropt + cropb + cropl + cropr > 0 || newWidth != metadata.width || newHeight != metadata.height) {
-				// Wrap canvas in a Fabric.js canvas
-				const fcanvas = new fabric.Canvas(canvas, {
-					imageSmoothingEnabled: false,
-					enableRetinaScaling: false,
-				});
-				fcanvas.setWidth(newWidth);
-				fcanvas.setHeight(newHeight);
+			canvas.width = newWidth;
+			canvas.height = newHeight;
 
-				// Apply cropping
-				const croppedImage = new fabric.Image(img, {
-					left: 0,
-					top: 0,
-					cropX: cropl,
-					cropY: cropt,
-					width: img.width - cropl - cropr,
-					height: img.height - cropt - cropb
-				});
+			ctx.drawImage(
+				img,
+				cropl,
+				cropt,
+				metadata.width - cropl - cropr,
+				metadata.height - cropt - cropb,
+				0,
+				0,
+				newWidth,
+				newHeight
+			);
 
-				// Apply scaling
-				croppedImage.scale(newWidth / (img.width - cropl - cropr));
-
-				// Apply filter
-				const lanczosFilter = new fabric.Image.filters.Resize({
-					scaleX: 1,
-					scaleY: 1,
-					resizeType: "lanczos",
-					lanczosLobes: 3,
-				});
-				croppedImage.filters = [lanczosFilter]; // TODO WEBGL deprecation warning
-				croppedImage.applyFilters();
-
-				// Render
-				fcanvas.add(croppedImage);
-				fcanvas.renderAll();
-			} else {
-				canvas.width = img.width;
-				canvas.height = img.height;
-				const ctx = canvas.getContext("2d");
-				ctx.drawImage(img, 0, 0);
-			}
-
-			// Convert the fcanvas to a Blob
 			console.log("converting image: " + newType + " " + newQuality);
 			canvas.toBlob(
 				(blob) => {
@@ -629,7 +601,7 @@ window.addEventListener("DOMContentLoaded", () => {
 	// hide the warning about javascript being disabled
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
-	
+
 	// hide info specific to other OS's
 	if (window.navigator.userAgent.includes("Win")) {
 		for (const e of document.querySelectorAll(".hide-windows")) {
@@ -640,7 +612,7 @@ window.addEventListener("DOMContentLoaded", () => {
 			e.style.display = "none";
 		}
 	}
-	
+
 	// set file input handlers
 	document.getElementById("input-files").oninput = fileInputHandler;
 	document.getElementById("input-dirs").oninput = fileInputHandler;
@@ -725,7 +697,7 @@ window.addEventListener("DOMContentLoaded", () => {
 			});
 		}
 	});
-	
+
 	// if an input gets disabled, change its value to [blank]
 	// when it's enabled, change its value to [default]
 	const dimObserver = new MutationObserver((mutations) => {
