@@ -275,11 +275,21 @@ label {
 	width: fit-content;
 	max-width: 500px;
 	margin: 0 auto;
-	padding: 20px;
-	text-align: center;
 	background-color: #FFF;
 	box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.6);
 	border-radius: 8px;
+	overflow: hidden;
+}
+
+.message-box-header {
+	background-color: #5AF;
+	padding: 5px 5px 5px 20px;
+	color: white;
+}
+
+.message-box-content {
+	padding: 20px;
+	text-align: center;
 }
 
 .noselect {
