@@ -351,6 +351,9 @@ function processMultiple(files) {
 				let newDims = getNewDimensions(metadata);
 				let newQuality = getNewQuality(file);
 
+				if (!newDims[4] || !newDims[5])
+					throw new Error("Unable to read image dimensions");
+
 				return resizeImage(file, metadata, newType, newDims, newQuality);
 			})
 			.then(result => {

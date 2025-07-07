@@ -63,7 +63,7 @@ async function readMetadata(file) {
 			if (marker == 0xE1)
 				if (bytesEqual(bytes, i, 4, true, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00])) // EXIF header
 					metadata.exif = readEXIF(bytes, i+6);
-			if (marker == 0xC0) {
+			if ((marker & 0xF0) == 0xC0) {
 				metadata.height = (bytes[i+1]<<8) | bytes[i+2];
 				metadata.width = (bytes[i+3]<<8) | bytes[i+4];
 				break;
