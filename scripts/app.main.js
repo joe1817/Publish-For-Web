@@ -410,77 +410,58 @@ function processMultiple(files) {
 	});
 }
 
-function resizeImage(file, metadata, newType, newDims, newQuality) {
-
+async function resizeImage(file, metadata, newType, newDims, newQuality) {
 	[cropt, cropb, cropl, cropr, newWidth, newHeight] = newDims;
 
-	return new Promise((resolve, reject) => {
-		if (cropt + cropb + cropl + cropr == 0 && newWidth == metadata.width && newHeight == metadata.height && newType == metadata.type && (newType == "image/png" || newQuality == 1)) {
-			removeMetadata(file, metadata.type)
-			.then(removed => {
-				if (removed) {
-					console.log("copying image data");
-					resolve({
-						file     : file,
-						metadata : metadata,
-						blob     : removed,
-						width    : metadata.width,
-						height   : metadata.height,
-					});
-				}
-			});
+	if (cropt + cropb + cropl + cropr == 0 && newWidth == metadata.width && newHeight == metadata.height && newType == metadata.type && (newType == "image/png" || newQuality == 1)) {
+		const removed = await removeMetadata(file, metadata.type);
+		if (removed) {
+			console.log("copying image data");
+			return {
+				file     : file,
+				metadata : metadata,
+				blob     : removed,
+				width    : metadata.width,
+				height   : metadata.height,
+			};
 		}
+	}
 
-		const url = URL.createObjectURL(file);
-		const img = new Image();
+	const canvas = new OffscreenCanvas(newWidth, newHeight);
+	const ctx = canvas.getContext("2d");
 
-		img.onload = () => {
-			URL.revokeObjectURL(url);
-
-			const canvas = document.createElement("canvas");
-			const ctx = canvas.getContext("2d");
-
-			canvas.width = newWidth;
-			canvas.height = newHeight;
-
-			ctx.drawImage(
-				img,
-				cropl,
-				cropt,
-				metadata.width - cropl - cropr,
-				metadata.height - cropt - cropb,
-				0,
-				0,
-				newWidth,
-				newHeight
-			);
-
-			console.log("converting image: " + newType + " " + newQuality);
-			canvas.toBlob(
-				(blob) => {
-					if (blob) {
-						resolve({
-							file     : file,
-							metadata : metadata,
-							blob     : blob,
-							width    : newWidth,
-							height   : newHeight,
-						});
-					} else {
-						reject(new Error("Failed to create Blob."));
-					}
-				},
-				newType, newQuality
-			);
+	const sw = metadata.width - cropl - cropr;
+	const sh = metadata.height - cropt - cropb;
+	const bitmap = await createImageBitmap(
+		file,
+		cropl,  // sx
+		cropt,  // sy
+		sw,     // sw
+		sh,     // sh
+		{
+			resizeWidth: newWidth,   // Scaled width
+			resizeHeight: newHeight, // Scaled height
+			resizeQuality: "high"    // Optional: "low", "medium", or "high"
 		}
+	);
 
-		img.onerror = (error) => {
-			URL.revokeObjectURL(url);
-			reject(error);
-		}
+	ctx.drawImage(bitmap, 0, 0);
+	bitmap.close();
 
-		img.src = url;
-	});
+	console.log("converting image: " + newType + " " + newQuality);
+	const blob = await canvas.convertToBlob({type: newType, quality: newQuality});
+
+	if (blob) {
+		return {
+			file     : file,
+			metadata : metadata,
+			blob     : blob,
+			width    : newWidth,
+			height   : newHeight,
+		};
+	} else {
+		throw new Error("Failed to create Blob.");
+	}
 }
 
 function saveAs(content, filename) {
